@@ -1,0 +1,47 @@
+from collections import deque
+from dataclasses import dataclass, field
+
+import numpy as np
+
+from .mapf_utils import Coord, Grid, get_neighbors, is_valid_coord
+
+
+@dataclass
+class DistTable:
+    grid: Grid
+    goal: Coord
+    restricted_directions: dict
+    Q: deque = field(init=False)
+    table: np.ndarray = field(init=False)  # distance matrix
+    NIL: int = field(init=False)
+
+    def __post_init__(self):
+        self.NIL = self.grid.size
+        self.Q = deque([self.goal])
+        self.table = np.full(self.grid.shape, self.NIL, dtype=int)
+        self.table[self.goal] = 0
+
+    def get(self, target: Coord) -> int:
+        # check valid input
+        if not is_valid_coord(self.grid, target):
+            return self.grid.size
+
+        # distance has been known
+        if self.table[target] < self.table.size:
+            return self.table[target]
+
+        # BFS with lazy evaluation
+        while len(self.Q) > 0:
+            u = self.Q.popleft()
+            d = int(self.table[u])
+            directions = self.restricted_directions.get(u, ["left", "right", "up", "down"])
+            if len(directions) == 0:
+                directions = ["left", "right", "up", "down"]
+            for v in get_neighbors(self.grid, u, directions):
+                if d + 1 < self.table[v]:
+                    self.table[v] = d + 1
+                    self.Q.append(v)
+            if u == target:
+                return d
+
+        return self.NIL
